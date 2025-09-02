@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 import os
 import shutil
@@ -15,10 +13,7 @@ from dotenv import load_dotenv
 import time
 import asyncio
 
-# Load environment variables
 load_dotenv()
-
-# Streamlit app configuration
 st.set_page_config(page_title="Document Q&A", layout="wide")
 st.title("Document Q&A")
 st.markdown("Upload PDF documents and ask questions about their content. The system will provide answers based solely on the uploaded PDFs.")
@@ -64,34 +59,28 @@ uploaded_files = st.sidebar.file_uploader(
     help="Upload one or more PDF files"
 )
 
-# Directory for uploaded files
-UPLOAD_DIR = "./uploaded_pdfs"
 
-# Create upload directory if it doesn't exist
+UPLOAD_DIR = "./uploaded_pdfs"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
-# Process uploaded files
+
 if uploaded_files:
-    # Clear the upload directory to avoid mixing old and new files
     for file in os.listdir(UPLOAD_DIR):
         file_path = os.path.join(UPLOAD_DIR, file)
         if os.path.isfile(file_path):
             os.unlink(file_path)
     
     for uploaded_file in uploaded_files:
-        # Check file size (50 MB limit = 50 * 1024 * 1024 bytes)
         if uploaded_file.size > 50 * 1024 * 1024:
             st.sidebar.error(f"File {uploaded_file.name} exceeds 50 MB limit")
             continue
         
-        # Save the uploaded file to the temporary directory
         file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
         with open(file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
         st.sidebar.success(f"Uploaded {uploaded_file.name}")
-
-# Validate API keys
+        
 def validate_api_keys():
     """Validate that required API keys are present"""
     groq_key = os.getenv('GROQ_API_KEY')
@@ -103,32 +92,26 @@ def validate_api_keys():
     if not google_key:
         st.error("❌ GOOGLE_API_KEY not found in environment variables") 
         return groq_key, None
-    
-    # Set Google API key for the embeddings
     os.environ["GOOGLE_API_KEY"] = google_key
     return groq_key, google_key
 
-# Cache the LLM initialization
 @st.cache_resource
 def get_llm(groq_api_key):
     """Initialize and cache the Groq LLM"""
     return ChatGroq(groq_api_key=groq_api_key, model_name="Llama3-8b-8192")
 
-# Cache the embeddings initialization  
 @st.cache_resource
 def get_embeddings():
     """Initialize and cache the Google embeddings model"""
     try:
-        # Try to get existing event loop
         loop = asyncio.get_event_loop()
     except RuntimeError:
-        # Create new event loop if none exists
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     
     return GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
-# Strict grounding prompt template with better instructions
+
 @st.cache_resource
 def get_prompt_template():
     """Create and cache the strict grounding prompt template"""
@@ -153,17 +136,14 @@ def get_prompt_template():
         """
     )
 
-# Enhanced vector store creation with better document processing
 @st.cache_resource
 def create_vector_store(_embeddings, chunk_size, chunk_overlap):
     """Load documents, split them intelligently, and create FAISS vector store"""
-    
-    # Check if directory exists
+
     if not os.path.exists(UPLOAD_DIR):
         st.error(f"❌ Directory '{UPLOAD_DIR}' not found. Please upload PDF files.")
         return None, None
-    
-    # Load all documents from directory
+
     with st.spinner("📚 Loading PDF documents..."):
         loader = PyPDFDirectoryLoader(UPLOAD_DIR)
         docs = loader.load()
@@ -173,13 +153,12 @@ def create_vector_store(_embeddings, chunk_size, chunk_overlap):
         return None, None
     
     st.info(f"✅ Loaded {len(docs)} document pages")
-    
-    # Enhanced text splitting for better retrieval
+
     with st.spinner("✂️ Splitting documents with optimized chunking..."):
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            # Better separators for academic/historical texts
+
             separators=[
                 "\n\n",           # Paragraph breaks
                 "\nCHAPTER",      # Chapter headings  
@@ -232,7 +211,7 @@ def create_vector_store(_embeddings, chunk_size, chunk_overlap):
     st.success(f"✅ Vector store created with {len(final_documents)} chunks")
     return vectors, final_documents
 
-# Enhanced answer extraction
+
 def extract_answer(response):
     """Robustly extract answer from different chain output formats"""
     possible_keys = ['answer', 'result', 'output_text', 'response']
@@ -245,19 +224,17 @@ def extract_answer(response):
     
     return str(response)
 
-# Main application logic
+
 def main():
-    # Validate API keys first
     groq_key, google_key = validate_api_keys()
     if not groq_key or not google_key:
         st.stop()
     
-    # Initialize cached resources
     llm = get_llm(groq_key)
     embeddings = get_embeddings()
     prompt_template = get_prompt_template()
     
-    # Document Processing Section
+
     st.header("Document Processing")
     
     col1, col2 = st.columns([2, 1])
@@ -276,7 +253,7 @@ def main():
         if hasattr(st.session_state, 'embedding_complete') and st.session_state.embedding_complete:
             st.success(f"✅ Ready: {len(st.session_state.documents)} chunks")
     
-    # Q&A Section
+
     st.header("Question & Answer")
     
     user_question = st.text_input(
