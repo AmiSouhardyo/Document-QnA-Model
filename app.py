@@ -215,7 +215,6 @@ def extract_answer(response):
     """Robustly extract answer from different chain output formats"""
     possible_keys = ['answer', 'result', 'output_text', 'response']
     
-   def extract_answer(response):
     if isinstance(response, dict):
         return response.get("result") or response.get("answer") or str(response)
     elif hasattr(response, "content"):
