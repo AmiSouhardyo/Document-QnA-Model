@@ -3,7 +3,8 @@ import os
 import shutil
 from langchain_groq import ChatGroq
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.chains import create_stuff_documents_chain, create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains.retrieval import create_retrieval_chain
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFDirectoryLoader
@@ -13,6 +14,14 @@ import time
 import asyncio
 
 load_dotenv()
+
+# Handle Streamlit Cloud secrets
+if hasattr(st, 'secrets'):
+    if "GROQ_API_KEY" in st.secrets:
+        os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+    if "GOOGLE_API_KEY" in st.secrets:
+        os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
+
 st.set_page_config(page_title="Document Q&A", layout="wide")
 st.title("Document Q&A")
 st.markdown("Upload PDF documents and ask questions about their content. The system will provide answers based solely on the uploaded PDFs.")
