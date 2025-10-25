@@ -3,7 +3,7 @@ import os
 import shutil
 from langchain_groq import ChatGroq
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.chains import create_stuff_documents_chain, create_retrieval_chain
+from langchain.chains import RetrievalQA
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFDirectoryLoader
@@ -215,13 +215,13 @@ def extract_answer(response):
     """Robustly extract answer from different chain output formats"""
     possible_keys = ['answer', 'result', 'output_text', 'response']
     
+   def extract_answer(response):
     if isinstance(response, dict):
-        for key in possible_keys:
-            if key in response:
-                return response[key]
-        return str(response)
-    
+        return response.get("result") or response.get("answer") or str(response)
+    elif hasattr(response, "content"):
+        return response.content
     return str(response)
+
 
 
 def main():
@@ -283,13 +283,17 @@ def main():
                     retriever = st.session_state.vectors.as_retriever(search_kwargs=search_kwargs)
                 
                 # Create and execute retrieval chain
-                document_chain = create_stuff_documents_chain(llm, prompt_template)
-                retrieval_chain = create_retrieval_chain(retriever, document_chain)
+                qa_chain = RetrievalQA.from_chain_type(
+                llm=llm,
+                retriever=retriever,
+                chain_type="stuff",
+                chain_type_kwargs={"prompt": prompt_template}
+            )
                 
                 # Time the operation
                 with st.spinner("🤔 Analyzing documents and generating answer..."):
                     start_time = time.perf_counter()
-                    response = retrieval_chain.invoke({'input': user_question})
+                    response = qa_chain.invoke({"query": user_question})
                     end_time = time.perf_counter()
                 
                 # Display results
